@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "JamPacker": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\Owner\\source\\repos\\slyonics\\JamBreaker\\JamBreaker\\Assets C:\\Users\\Owner\\source\\repos\\slyonics\\JamBreaker\\JamBreaker\\bin\\x64\\Debug\\net6.0"
+    }
+  }
+}
