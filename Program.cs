@@ -27,32 +27,68 @@ namespace JamPacker
             string[] contentSubdirs = Directory.GetDirectories(contentPath);
 
             Console.WriteLine("Enumerating fonts...");
-            IEnumerable<string> fontFiles = Directory.EnumerateFiles(contentPath + "\\Fonts", "*.ttf", SearchOption.AllDirectories);
+            List<Tuple<string, string>> fontFiles = EnumerateAssets(contentPath + "\\Fonts", "ttf");
             PackFonts(fontFiles, outputPath);
 
             Console.WriteLine("Enumerating views...");
-            IEnumerable<string> viewFiles = Directory.EnumerateFiles(contentPath + "\\..\\Scenes", "*.xml", SearchOption.AllDirectories);
-            viewFiles = viewFiles.Concat(Directory.EnumerateFiles(contentPath + "\\..\\SceneObjects", "*.xml", SearchOption.AllDirectories));
+            List<Tuple<string, string>> viewFiles = EnumerateAssets(new string[] { contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, "xml");
             PackViews(viewFiles, outputPath);
 
             Console.WriteLine("Enumerating sounds...");
-            IEnumerable<string> soundFiles = Directory.EnumerateFiles(contentPath + "\\Audio\\Sounds", "*.wav", SearchOption.AllDirectories);
+            List<Tuple<string, string>> soundFiles = EnumerateAssets(contentPath + "\\Audio\\Sounds", "wav");
             PackSounds(soundFiles, outputPath);
 
             Console.WriteLine("Enumerating music...");
-            IEnumerable<string> musicFiles = Directory.EnumerateFiles(contentPath + "\\Audio\\Music", "*.mp3", SearchOption.AllDirectories);
-            musicFiles = musicFiles.Concat(Directory.EnumerateFiles(contentPath + "\\Audio\\Music", "*.ogg", SearchOption.AllDirectories));
+            List<Tuple<string, string>> musicFiles = EnumerateAssets(contentPath + "\\Audio\\Music", new string[] { "mp3", "ogg" });
             PackMusic(musicFiles, outputPath);
 
             Console.WriteLine("Enumerating data...");
-            IEnumerable<string> dataFiles = Directory.EnumerateFiles(contentPath + "\\Data", "*.json", SearchOption.AllDirectories);
+            List<Tuple<string, string>> dataFiles = EnumerateAssets(contentPath + "\\Data", "json");
             PackData(dataFiles, outputPath);
 
             Console.WriteLine("Enumerating shaders...");
-            IEnumerable<string> shaderFiles = Directory.EnumerateFiles(contentPath + "\\Shaders", "*.fx", SearchOption.AllDirectories);
+            List<Tuple<string, string>> shaderFiles = EnumerateAssets(contentPath + "\\Shaders", "fx");
             PackShaders(shaderFiles, outputPath);
 
             return 0;
+        }
+
+        private static List<Tuple<string, string>> EnumerateAssets(string[] basePaths, string[] extensions)
+        {
+            if (basePaths.Any(x => basePaths.Any(y => x != y && (x.Contains(y) || y.Contains(x)))))
+            {
+                throw new Exception();
+            }
+
+            List<Tuple<string, string>> result = new List<Tuple<string, string>>();
+            foreach (string basePath in basePaths)
+            {
+                foreach (string extension in extensions)
+                {
+                    IEnumerable<string> files = Directory.EnumerateFiles(basePath, "*." + extension, SearchOption.AllDirectories);
+                    foreach (string file in files)
+                    {
+                        result.Add(new Tuple<string, string>(file.Replace(basePath + '\\', "").Replace('.' + extension, ""), file));
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static List<Tuple<string, string>> EnumerateAssets(string[] basePaths, string extension)
+        {
+            return EnumerateAssets(basePaths, new string[] { extension });
+        }
+
+        private static List<Tuple<string, string>> EnumerateAssets(string basePath, string[] extensions)
+        {
+            return EnumerateAssets(new string[] { basePath }, extensions);
+        }
+
+        private static List<Tuple<string, string>> EnumerateAssets(string basePath, string extension)
+        {
+            return EnumerateAssets(new string[] { basePath }, new string[] { extension });
         }
 
         private static bool Pack(List<Tuple<byte[], byte[]>> assets, string filePath)
@@ -86,16 +122,15 @@ namespace JamPacker
 
             return true;
         }
-        private static void PackFonts(IEnumerable<string> fontFiles, string fontOutputPath)
+        private static void PackFonts(List<Tuple<string, string>> fontFiles, string fontOutputPath)
         {
             Console.WriteLine("Packing fonts...");
 
             List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();            
-            foreach (string fontPath in fontFiles)
+            foreach (Tuple<string, string> fontPath in fontFiles)
             {
-                string fontFile = Path.GetFileNameWithoutExtension(fontPath);
-                byte[] nameData = Encoding.ASCII.GetBytes(fontFile);
-                byte[] fontData = File.ReadAllBytes(fontPath);
+                byte[] nameData = Encoding.ASCII.GetBytes(fontPath.Item1);
+                byte[] fontData = File.ReadAllBytes(fontPath.Item2);
                 assets.Add(new Tuple<byte[], byte[]>(nameData, fontData));
             }
 
@@ -105,16 +140,15 @@ namespace JamPacker
             }
         }
 
-        private static void PackViews(IEnumerable<string> viewFiles, string viewOutputPath)
+        private static void PackViews(List<Tuple<string, string>> viewFiles, string viewOutputPath)
         {
             Console.WriteLine("Packing views...");
 
             List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (string viewPath in viewFiles)
+            foreach (Tuple<string, string> viewPath in viewFiles)
             {
-                string viewFile = Path.GetFileNameWithoutExtension(viewPath);
-                byte[] nameData = Encoding.ASCII.GetBytes(viewFile);
-                string viewData = File.ReadAllText(viewPath);
+                byte[] nameData = Encoding.ASCII.GetBytes(viewPath.Item1);
+                string viewData = File.ReadAllText(viewPath.Item2);
                 assets.Add(new Tuple<byte[], byte[]>(nameData, Encoding.ASCII.GetBytes(viewData)));
             }
 
@@ -124,16 +158,15 @@ namespace JamPacker
             }
         }
 
-        private static void PackSounds(IEnumerable<string> soundFiles, string soundOutputPath)
+        private static void PackSounds(List<Tuple<string, string>> soundFiles, string soundOutputPath)
         {
             Console.WriteLine("Packing sounds...");
 
             List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (string soundPath in soundFiles)
+            foreach (Tuple<string, string> soundPath in soundFiles)
             {
-                string soundFile = Path.GetFileNameWithoutExtension(soundPath);
-                byte[] nameData = Encoding.ASCII.GetBytes(soundFile);
-                byte[] soundData = File.ReadAllBytes(soundPath);
+                byte[] nameData = Encoding.ASCII.GetBytes(soundPath.Item1);
+                byte[] soundData = File.ReadAllBytes(soundPath.Item2);
                 assets.Add(new Tuple<byte[], byte[]>(nameData, soundData));
             }
 
@@ -143,16 +176,15 @@ namespace JamPacker
             }
         }
 
-        private static void PackMusic (IEnumerable<string> musicFiles, string musicOutputPath)
+        private static void PackMusic (List<Tuple<string, string>> musicFiles, string musicOutputPath)
         {
             Console.WriteLine("Packing music...");
 
             List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (string musicPath in musicFiles)
+            foreach (Tuple<string, string> musicPath in musicFiles)
             {
-                string musicFile = Path.GetFileNameWithoutExtension(musicPath);
-                byte[] nameData = Encoding.ASCII.GetBytes(musicFile);
-                byte[] musicData = File.ReadAllBytes(musicPath);
+                byte[] nameData = Encoding.ASCII.GetBytes(musicPath.Item1);
+                byte[] musicData = File.ReadAllBytes(musicPath.Item2);
                 assets.Add(new Tuple<byte[], byte[]>(nameData, musicData));
             }
 
@@ -162,16 +194,15 @@ namespace JamPacker
             }
         }
 
-        private static void PackData(IEnumerable<string> dataFiles, string dataOutputPath)
+        private static void PackData(List<Tuple<string, string>> dataFiles, string dataOutputPath)
         {
             Console.WriteLine("Packing data...");
 
             List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (string dataPath in dataFiles)
+            foreach (Tuple<string, string> dataPath in dataFiles)
             {
-                string dataFile = Path.GetFileNameWithoutExtension(dataPath);
-                byte[] nameData = Encoding.ASCII.GetBytes(dataFile);
-                string jsonData = File.ReadAllText(dataPath);
+                byte[] nameData = Encoding.ASCII.GetBytes(dataPath.Item1);
+                string jsonData = File.ReadAllText(dataPath.Item2);
                 assets.Add(new Tuple<byte[], byte[]>(nameData, Encoding.ASCII.GetBytes(jsonData)));
             }
 
@@ -181,23 +212,22 @@ namespace JamPacker
             }
         }
 
-        private static void PackShaders(IEnumerable<string> shaderFiles, string shaderOutputPath)
+        private static void PackShaders(List<Tuple<string, string>> shaderFiles, string shaderOutputPath)
         {
             Console.WriteLine("Packing shaders...");
 
             bool errors = false;
             List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (string shaderPath in shaderFiles)
+            foreach (Tuple<string, string> shaderPath in shaderFiles)
             {
-                string compileCommmand = string.Format("/C mgfxc {0} temp_shader /Profile:OpenGL", shaderPath);
+                string compileCommmand = string.Format("/C mgfxc {0} temp_shader /Profile:OpenGL", shaderPath.Item2);
                 var process = System.Diagnostics.Process.Start("CMD.exe", compileCommmand);
                 process.WaitForExit();
 
                 if (process.ExitCode != 0) errors = true;
                 else
                 {
-                    string shaderFile = Path.GetFileNameWithoutExtension(shaderPath);
-                    byte[] nameData = Encoding.ASCII.GetBytes(shaderFile);
+                    byte[] nameData = Encoding.ASCII.GetBytes(shaderPath.Item1);
                     byte[] shaderData = File.ReadAllBytes("temp_shader");
                     assets.Add(new Tuple<byte[], byte[]>(nameData, shaderData));
                 }
