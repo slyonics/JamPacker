@@ -50,6 +50,10 @@ namespace JamPacker
             List<Tuple<string, string>> shaderFiles = EnumerateAssets(contentPath + "\\Shaders", "fx");
             PackShaders(shaderFiles, outputPath);
 
+            Console.WriteLine("Enumerating sprites...");
+            List<Tuple<string, string>> spriteFiles = EnumerateAssets(contentPath + "\\Graphics", "png");
+            PackSprites(spriteFiles, outputPath);
+
             return 0;
         }
 
@@ -247,6 +251,24 @@ namespace JamPacker
             if (!Pack(assets, shaderOutputPath + "\\Shaders.jam"))
             {
                 throw new Exception("Unable to compress HLSL data!");
+            }
+        }
+
+        private static void PackSprites(List<Tuple<string, string>> spriteFiles, string spriteOutputPath)
+        {
+            Console.WriteLine("Packing sprites...");
+
+            List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
+            foreach (Tuple<string, string> spritePath in spriteFiles)
+            {
+                byte[] nameData = Encoding.ASCII.GetBytes(spritePath.Item1);
+                byte[] spriteData = File.ReadAllBytes(spritePath.Item2);
+                assets.Add(new Tuple<byte[], byte[]>(nameData, spriteData));
+            }
+
+            if (!Pack(assets, spriteOutputPath + "\\Sprites.jam"))
+            {
+                throw new Exception("Unable to compress sprite data!");
             }
         }
     }
