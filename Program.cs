@@ -51,7 +51,7 @@ namespace JamPacker
             PackShaders(shaderFiles, outputPath);
 
             Console.WriteLine("Enumerating sprites...");
-            List<Tuple<string, string>> spriteFiles = EnumerateAssets(contentPath + "\\Graphics", "png");
+            List<Tuple<string, string>> spriteFiles = EnumerateAssets(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" });
             PackSprites(spriteFiles, outputPath);
 
             return 0;
