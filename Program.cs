@@ -6,6 +6,8 @@ using System.Text;
 
 using K4os.Compression.LZ4;
 
+using Newtonsoft.Json;
+
 namespace JamPacker
 {
     class Program
@@ -34,7 +36,7 @@ namespace JamPacker
                     return -1;
                 }
 
-                return 0;
+                return EnumerateAssets(args) ? 0 : -1;
             }
             else if (args[0].ToLower() == "pack")
             {
@@ -59,7 +61,102 @@ namespace JamPacker
             }
         }
 
-        private static List<Tuple<string, string>> EnumerateAssets(string[] basePaths, string[] extensions)
+        private static bool EnumerateAssets(string[] args)
+        {
+            string contentPath = args[1];
+            string outputPath = args[2];
+            string objectPath = outputPath.Replace("\\bin\\", "\\obj\\");
+            string projectName = contentPath.Split('\\').TakeLast(2).First();
+            string[] contentSubdirs = Directory.GetDirectories(contentPath);
+
+            Console.WriteLine("Enumerating assets...");
+
+            Console.WriteLine("Enumerating fonts...");
+            List<Tuple<string, string>> fontFiles = Enumerate(contentPath + "\\Fonts", "ttf");
+            Console.WriteLine("Enumerating views...");
+            List<Tuple<string, string>> viewFiles = Enumerate(new string[] { contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, "xml");
+            Console.WriteLine("Enumerating sounds...");
+            List<Tuple<string, string>> soundFiles = Enumerate(contentPath + "\\Audio\\Sounds", "wav");
+            Console.WriteLine("Enumerating music...");
+            List<Tuple<string, string>> musicFiles = Enumerate(contentPath + "\\Audio\\Music", new string[] { "mp3", "ogg" });
+            Console.WriteLine("Enumerating data...");
+            List<Tuple<string, string>> dataFiles = Enumerate(contentPath + "\\Data", "json");
+            Console.WriteLine("Enumerating shaders...");
+            List<Tuple<string, string>> shaderFiles = Enumerate(contentPath + "\\Shaders", "fx");
+            Console.WriteLine("Enumerating sprites...");
+            List<Tuple<string, string>> spriteFiles = Enumerate(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" });
+
+            Console.WriteLine("Creating C# enumerations file...");
+
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine(string.Format("namespace {0}.Main\r\n", projectName) + '{');
+            stringBuilder.AppendLine("    public enum GameView\r\n" + "    {");
+            WriteEnumerations(viewFiles, stringBuilder);
+            stringBuilder.AppendLine("    }\r\n");
+            stringBuilder.AppendLine("    public enum GameSound\r\n" + "    {");
+            WriteEnumerations(soundFiles, stringBuilder);
+            stringBuilder.AppendLine("    }\r\n");
+            stringBuilder.AppendLine("    public enum GameMusic\r\n" + "    {");
+            WriteEnumerations(musicFiles, stringBuilder);
+            stringBuilder.AppendLine("    }\r\n");
+            stringBuilder.AppendLine("    public enum GameData\r\n" + "    {");
+            WriteEnumerations(dataFiles, stringBuilder);
+            stringBuilder.AppendLine("    }\r\n");
+            stringBuilder.AppendLine("    public enum GameShader\r\n" + "    {");
+            WriteEnumerations(shaderFiles, stringBuilder);
+            stringBuilder.AppendLine("    }\r\n");
+            stringBuilder.AppendLine("    public enum GameSprite\r\n" + "    {");
+            WriteEnumerations(spriteFiles, stringBuilder);
+            stringBuilder.AppendLine("    }\r\n");
+            stringBuilder.AppendLine("}\r\n");
+
+            try
+            {
+                File.WriteAllText(contentPath + "\\..\\Main\\AssetList.cs", stringBuilder.ToString());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Cannot create/overwrite C# enumerations file: " + ex.Message);
+                return false;
+            }
+
+            Console.WriteLine("Determining asset archives to build...");
+
+            JsonSerializer serializer = new JsonSerializer();
+            bool fontsDirty = true;
+            try
+            {
+                JsonTextReader fontManifestReader = new JsonTextReader(new StreamReader(""));
+                List<Tuple<string, string>> oldFontFiles = serializer.Deserialize<List<Tuple<string, string>>>(fontManifestReader);
+                if (oldFontFiles.Count == fontFiles.Count && Enumerable.SequenceEqual(oldFontFiles, fontFiles))
+                {
+                    fontsDirty = false;
+                }
+            }
+            catch (Exception) {  }
+            if (fontsDirty)
+            {
+                try
+                {
+
+                }
+                catch (Exception ex) { }
+            }
+
+            return true;
+        }
+
+        private static void WriteEnumerations(List<Tuple<string, string>> assetFiles, StringBuilder stringBuilder)
+        {
+            foreach (Tuple<string, string> asset in assetFiles)
+            {
+                stringBuilder.AppendLine("        " + asset.Item1.Replace("\\", "_") + ",");
+            }
+
+            stringBuilder.AppendLine("\r\n" + "        " + "None = -1");
+        }
+
+        private static List<Tuple<string, string>> Enumerate(string[] basePaths, string[] extensions)
         {
             if (basePaths.Any(x => basePaths.Any(y => x != y && (x.Contains(y) || y.Contains(x)))))
             {
@@ -82,19 +179,19 @@ namespace JamPacker
             return result;
         }
 
-        private static List<Tuple<string, string>> EnumerateAssets(string[] basePaths, string extension)
+        private static List<Tuple<string, string>> Enumerate(string[] basePaths, string extension)
         {
-            return EnumerateAssets(basePaths, new string[] { extension });
+            return Enumerate(basePaths, new string[] { extension });
         }
 
-        private static List<Tuple<string, string>> EnumerateAssets(string basePath, string[] extensions)
+        private static List<Tuple<string, string>> Enumerate(string basePath, string[] extensions)
         {
-            return EnumerateAssets(new string[] { basePath }, extensions);
+            return Enumerate(new string[] { basePath }, extensions);
         }
 
-        private static List<Tuple<string, string>> EnumerateAssets(string basePath, string extension)
+        private static List<Tuple<string, string>> Enumerate(string basePath, string extension)
         {
-            return EnumerateAssets(new string[] { basePath }, new string[] { extension });
+            return Enumerate(new string[] { basePath }, new string[] { extension });
         }
 
         private static bool PackAssets(string[] args)
@@ -106,31 +203,31 @@ namespace JamPacker
             string[] contentSubdirs = Directory.GetDirectories(contentPath);
 
             Console.WriteLine("Enumerating fonts...");
-            List<Tuple<string, string>> fontFiles = EnumerateAssets(contentPath + "\\Fonts", "ttf");
+            List<Tuple<string, string>> fontFiles = Enumerate(contentPath + "\\Fonts", "ttf");
             PackFonts(fontFiles, outputPath);
 
             Console.WriteLine("Enumerating views...");
-            List<Tuple<string, string>> viewFiles = EnumerateAssets(new string[] { contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, "xml");
+            List<Tuple<string, string>> viewFiles = Enumerate(new string[] { contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, "xml");
             PackViews(viewFiles, outputPath);
 
             Console.WriteLine("Enumerating sounds...");
-            List<Tuple<string, string>> soundFiles = EnumerateAssets(contentPath + "\\Audio\\Sounds", "wav");
+            List<Tuple<string, string>> soundFiles = Enumerate(contentPath + "\\Audio\\Sounds", "wav");
             PackSounds(soundFiles, outputPath);
 
             Console.WriteLine("Enumerating music...");
-            List<Tuple<string, string>> musicFiles = EnumerateAssets(contentPath + "\\Audio\\Music", new string[] { "mp3", "ogg" });
+            List<Tuple<string, string>> musicFiles = Enumerate(contentPath + "\\Audio\\Music", new string[] { "mp3", "ogg" });
             PackMusic(musicFiles, outputPath);
 
             Console.WriteLine("Enumerating data...");
-            List<Tuple<string, string>> dataFiles = EnumerateAssets(contentPath + "\\Data", "json");
+            List<Tuple<string, string>> dataFiles = Enumerate(contentPath + "\\Data", "json");
             PackData(dataFiles, outputPath);
 
             Console.WriteLine("Enumerating shaders...");
-            List<Tuple<string, string>> shaderFiles = EnumerateAssets(contentPath + "\\Shaders", "fx");
+            List<Tuple<string, string>> shaderFiles = Enumerate(contentPath + "\\Shaders", "fx");
             PackShaders(shaderFiles, outputPath, objectPath);
 
             Console.WriteLine("Enumerating sprites...");
-            List<Tuple<string, string>> spriteFiles = EnumerateAssets(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" });
+            List<Tuple<string, string>> spriteFiles = Enumerate(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" });
             PackSprites(spriteFiles, outputPath);
 
             return true;
