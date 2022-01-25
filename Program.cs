@@ -71,76 +71,61 @@ namespace JamPacker
 
             Console.WriteLine("Enumerating assets...");
 
-            Console.WriteLine("Enumerating fonts...");
-            List<Tuple<string, string>> fontFiles = Enumerate(contentPath + "\\Fonts", "ttf");
-            Console.WriteLine("Enumerating views...");
-            List<Tuple<string, string>> viewFiles = Enumerate(new string[] { contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, "xml");
-            Console.WriteLine("Enumerating sounds...");
-            List<Tuple<string, string>> soundFiles = Enumerate(contentPath + "\\Audio\\Sounds", "wav");
-            Console.WriteLine("Enumerating music...");
-            List<Tuple<string, string>> musicFiles = Enumerate(contentPath + "\\Audio\\Music", new string[] { "mp3", "ogg" });
-            Console.WriteLine("Enumerating data...");
-            List<Tuple<string, string>> dataFiles = Enumerate(contentPath + "\\Data", "json");
-            Console.WriteLine("Enumerating shaders...");
-            List<Tuple<string, string>> shaderFiles = Enumerate(contentPath + "\\Shaders", "fx");
-            Console.WriteLine("Enumerating sprites...");
-            List<Tuple<string, string>> spriteFiles = Enumerate(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" });
+            Dictionary<string, List<Tuple<string, string>>> assetDirectory = new Dictionary<string, List<Tuple<string, string>>>();
+            assetDirectory.Add("Font", Enumerate(contentPath + "\\Fonts", "ttf"));
+            assetDirectory.Add("View", Enumerate(new string[] { contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, "xml"));
+            assetDirectory.Add("Sound", Enumerate(contentPath + "\\Audio\\Sounds", "wav"));
+            assetDirectory.Add("Music", Enumerate(contentPath + "\\Audio\\Music", new string[] { "mp3", "ogg" }));
+            assetDirectory.Add("Data", Enumerate(contentPath + "\\Data", "json"));
+            assetDirectory.Add("Shader", Enumerate(contentPath + "\\Shaders", "fx"));
+            assetDirectory.Add("Sprite", Enumerate(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" }));
 
             Console.WriteLine("Creating C# enumerations file...");
 
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Format("namespace {0}.Main\r\n", projectName) + '{');
-            stringBuilder.AppendLine("    public enum GameView\r\n" + "    {");
-            WriteEnumerations(viewFiles, stringBuilder);
-            stringBuilder.AppendLine("    }\r\n");
-            stringBuilder.AppendLine("    public enum GameSound\r\n" + "    {");
-            WriteEnumerations(soundFiles, stringBuilder);
-            stringBuilder.AppendLine("    }\r\n");
-            stringBuilder.AppendLine("    public enum GameMusic\r\n" + "    {");
-            WriteEnumerations(musicFiles, stringBuilder);
-            stringBuilder.AppendLine("    }\r\n");
-            stringBuilder.AppendLine("    public enum GameData\r\n" + "    {");
-            WriteEnumerations(dataFiles, stringBuilder);
-            stringBuilder.AppendLine("    }\r\n");
-            stringBuilder.AppendLine("    public enum GameShader\r\n" + "    {");
-            WriteEnumerations(shaderFiles, stringBuilder);
-            stringBuilder.AppendLine("    }\r\n");
-            stringBuilder.AppendLine("    public enum GameSprite\r\n" + "    {");
-            WriteEnumerations(spriteFiles, stringBuilder);
-            stringBuilder.AppendLine("    }\r\n");
-            stringBuilder.AppendLine("}\r\n");
+            stringBuilder.AppendLine(string.Format("namespace {0}.Main\r\n", projectName) + "{");
+            foreach (KeyValuePair<string, List<Tuple<string, string>>> assetList in assetDirectory)
+            {
+                if (assetList.Key == "Font") continue;
 
-            try
-            {
-                File.WriteAllText(contentPath + "\\..\\Main\\AssetList.cs", stringBuilder.ToString());
+                stringBuilder.AppendLine("    public enum Game" + assetList.Key + "\r\n" + "    {");
+                WriteEnumerations(assetList.Value, stringBuilder);
+                stringBuilder.AppendLine("    }\r\n");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Cannot create/overwrite C# enumerations file: " + ex.Message);
-                return false;
-            }
+            stringBuilder.AppendLine("}");
+            try { File.WriteAllText(contentPath + "\\..\\Main\\AssetList.cs", stringBuilder.ToString()); }
+            catch (Exception ex) { Console.WriteLine("Cannot create/overwrite C# enumerations file: " + ex.Message); return false; }
 
             Console.WriteLine("Determining asset archives to build...");
 
             JsonSerializer serializer = new JsonSerializer();
-            bool fontsDirty = true;
-            try
+            foreach (KeyValuePair<string, List<Tuple<string, string>>> assetList in assetDirectory)
             {
-                JsonTextReader fontManifestReader = new JsonTextReader(new StreamReader(""));
-                List<Tuple<string, string>> oldFontFiles = serializer.Deserialize<List<Tuple<string, string>>>(fontManifestReader);
-                if (oldFontFiles.Count == fontFiles.Count && Enumerable.SequenceEqual(oldFontFiles, fontFiles))
-                {
-                    fontsDirty = false;
-                }
-            }
-            catch (Exception) {  }
-            if (fontsDirty)
-            {
+                bool archiveDirty = true;
+                string manifestFileName = objectPath + "\\" + assetList.Key + ".manifest";
                 try
                 {
-
+                    using (JsonTextReader assetManifestReader = new JsonTextReader(new StreamReader(manifestFileName)))
+                    {
+                        List<Tuple<string, string>> oldAssetManifest = serializer.Deserialize<List<Tuple<string, string>>>(assetManifestReader);
+                        if (oldAssetManifest.Count == assetList.Value.Count && Enumerable.SequenceEqual(oldAssetManifest, assetList.Value))
+                        {
+                            archiveDirty = false;
+                        }
+                    }
                 }
-                catch (Exception ex) { }
+                catch (Exception) { }
+                if (archiveDirty)
+                {
+                    try
+                    {
+                        using (JsonTextWriter assetManifestWriter = new JsonTextWriter(new StreamWriter(manifestFileName)))
+                        {
+                            serializer.Serialize(assetManifestWriter, assetList.Value);
+                        }
+                    }
+                    catch (Exception ex) { Console.WriteLine("Could not write " + assetList.Key + " manifest: " + ex.Message); return false; }
+                }
             }
 
             return true;
