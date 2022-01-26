@@ -45,8 +45,15 @@ namespace JamPacker
                 stringBuilder.AppendLine("    }\r\n");
             }
             stringBuilder.AppendLine("}");
-            try { File.WriteAllText(contentPath + "\\..\\Main\\AssetList.cs", stringBuilder.ToString()); }
-            catch (Exception ex) { Console.WriteLine("Cannot create/overwrite C# enumerations file: " + ex.Message); return false; }
+            try
+            {
+                File.WriteAllText(contentPath + "\\..\\Main\\AssetList.cs", stringBuilder.ToString());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Cannot create/overwrite C# enumerations file: " + ex.Message);
+                return false;
+            }
 
             Console.WriteLine("Determining asset archives to build...");
 
@@ -76,7 +83,11 @@ namespace JamPacker
                             serializer.Serialize(assetManifestWriter, assetList.Value);
                         }
                     }
-                    catch (Exception ex) { Console.WriteLine("Could not write " + assetList.Key + " manifest: " + ex.Message); return false; }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Could not write " + assetList.Key + " manifest: " + ex.Message);
+                        return false;
+                    }
                 }
             }
 

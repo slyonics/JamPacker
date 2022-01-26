@@ -19,48 +19,97 @@ namespace JamPacker
             string outputPath = args[2];
             string objectPath = outputPath.Replace("\\bin\\", "\\obj\\");
             string[] contentSubdirs = Directory.GetDirectories(contentPath);
+            bool success = true;
 
-            Console.WriteLine("Enumerating fonts...");
-            JsonSerializer serializer = new JsonSerializer();
-            List<Tuple<string, string>> fontFiles = null;
-            try
+            Console.WriteLine("Packing assets...");
+
+            List<Tuple<string, string>> assetFiles = ReadManifest(objectPath + "\\Font.manifest", outputPath + "\\Fonts.jam");
+            if (assetFiles.Count == 0) Console.WriteLine("Skipping fonts...");
+            else
             {
-                using (JsonTextReader assetManifestReader = new JsonTextReader(new StreamReader(objectPath + "\\Font.manifest")))
-                {
-                    fontFiles = serializer.Deserialize<List<Tuple<string, string>>>(assetManifestReader);
-                }
+                Console.WriteLine("Packing fonts...");
+                if (!PackAssetsBytes(assetFiles, outputPath + "\\Fonts.jam")) success = false;
             }
-            catch (Exception ex) { }
-            PackFonts(fontFiles, outputPath);
 
-            Console.WriteLine("Enumerating views...");
-            List<Tuple<string, string>> viewFiles = Enumerate(new string[] { contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, "xml");
-            PackViews(viewFiles, outputPath);
+            assetFiles = ReadManifest(objectPath + "\\View.manifest", outputPath + "\\Views.jam");
+            if (assetFiles.Count == 0) Console.WriteLine("Skipping views...");
+            else
+            {
+                Console.WriteLine("Packing views...");
+                if (!PackAssetsAscii(assetFiles, outputPath + "\\Views.jam")) success = false;
+            }
 
-            Console.WriteLine("Enumerating sounds...");
-            List<Tuple<string, string>> soundFiles = Enumerate(contentPath + "\\Audio\\Sounds", "wav");
-            PackSounds(soundFiles, outputPath);
+            assetFiles = ReadManifest(objectPath + "\\Sound.manifest", outputPath + "\\Sounds.jam");
+            if (assetFiles.Count == 0) Console.WriteLine("Skipping sounds...");
+            else
+            {
+                Console.WriteLine("Packing sounds...");
+                if (!PackAssetsBytes(assetFiles, outputPath + "\\Sounds.jam")) success = false;
+            }
 
-            Console.WriteLine("Enumerating music...");
-            List<Tuple<string, string>> musicFiles = Enumerate(contentPath + "\\Audio\\Music", new string[] { "mp3", "ogg" });
-            PackMusic(musicFiles, outputPath);
+            assetFiles = ReadManifest(objectPath + "\\Music.manifest", outputPath + "\\Music.jam");
+            if (assetFiles.Count == 0) Console.WriteLine("Skipping music...");
+            else
+            {
+                Console.WriteLine("Packing music...");
+                if (!PackAssetsBytes(assetFiles, outputPath + "\\Music.jam")) success = false;
+            }
 
-            Console.WriteLine("Enumerating data...");
-            List<Tuple<string, string>> dataFiles = Enumerate(contentPath + "\\Data", "json");
-            PackData(dataFiles, outputPath);
+            assetFiles = ReadManifest(objectPath + "\\Data.manifest", outputPath + "\\Data.jam");
+            if (assetFiles.Count == 0) Console.WriteLine("Skipping data...");
+            else
+            {
+                Console.WriteLine("Packing data...");
+                if (!PackAssetsAscii(assetFiles, outputPath + "\\Data.jam")) success = false;
+            }
 
-            Console.WriteLine("Enumerating shaders...");
-            List<Tuple<string, string>> shaderFiles = Enumerate(contentPath + "\\Shaders", "fx");
-            PackShaders(shaderFiles, outputPath, objectPath);
+            assetFiles = ReadManifest(objectPath + "\\Shader.manifest", outputPath + "\\Shaders.jam");
+            if (assetFiles.Count == 0) Console.WriteLine("Skipping shaders...");
+            else
+            {
+                Console.WriteLine("Packing shaders...");
+                if (!PackAssetsShaders(assetFiles, outputPath + "\\Shaders.jam", objectPath)) success = false;
+            }
 
-            Console.WriteLine("Enumerating sprites...");
-            List<Tuple<string, string>> spriteFiles = Enumerate(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" });
-            PackSprites(spriteFiles, outputPath);
+            assetFiles = ReadManifest(objectPath + "\\Sprite.manifest", outputPath + "\\Sprites.jam");
+            if (assetFiles.Count == 0) Console.WriteLine("Skipping sprites...");
+            else
+            {
+                Console.WriteLine("Packing sprites...");
+                if (!PackAssetsBytes(assetFiles, outputPath + "\\Sprites.jam")) success = false;
+            }
 
-            return true;
+            return success;
         }
 
-        private static bool Pack(List<Tuple<byte[], byte[]>> assets, string filePath)
+        private static List<Tuple<string, string>> ReadManifest(string manifestPath, string archivePath)
+        {
+            JsonSerializer serializer = new JsonSerializer();
+            List<Tuple<string, string>> assetFiles = null;
+
+            try
+            {
+                using (JsonTextReader assetManifestReader = new JsonTextReader(new StreamReader(manifestPath)))
+                {
+                    assetFiles = serializer.Deserialize<List<Tuple<string, string>>>(assetManifestReader);
+                    if (!File.Exists(archivePath) || Directory.GetLastWriteTime(manifestPath) > Directory.GetLastWriteTime(archivePath) ||
+                        assetFiles.Any(x => Directory.GetLastWriteTime(x.Item2) >= Directory.GetLastWriteTime(archivePath)))
+                    {
+                        return assetFiles;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(string.Format("Unable to get asset manifest from {0}: {1}", manifestPath, ex.Message));
+
+                return null;
+            }
+
+            return new List<Tuple<string, string>>();
+        }
+
+        private static bool CompressAndWriteArchive(List<Tuple<byte[], byte[]>> assets, string filePath)
         {
             int index = 0;
             byte[] rawData = new byte[assets.Sum(x => x.Item1.Length + x.Item2.Length + 8)];
@@ -79,95 +128,58 @@ namespace JamPacker
             int packedSize = LZ4Codec.Encode(rawData, 0, rawData.Length, packedData, 0, packedData.Length);
             if (packedSize < 0)
             {
+                Console.WriteLine(string.Format("Unable to compress asset archive {0}", filePath));
+
                 return false;
             }
 
-            using (BinaryWriter binaryWriter = new BinaryWriter(File.Open(filePath, FileMode.Create)))
+            try
             {
-                binaryWriter.Write(assets.Count());
-                binaryWriter.Write(rawData.Length);
-                binaryWriter.Write(packedData, 0, packedSize);
+                using (BinaryWriter binaryWriter = new BinaryWriter(File.Open(filePath, FileMode.Create)))
+                {
+                    binaryWriter.Write(assets.Count());
+                    binaryWriter.Write(rawData.Length);
+                    binaryWriter.Write(packedData, 0, packedSize);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(string.Format("Unable to write asset archive {0}: {1}", filePath, ex.Message));
+
+                return false;
             }
 
             return true;
         }
-        private static bool PackFonts(List<Tuple<string, string>> fontFiles, string fontOutputPath)
-        {
-            Console.WriteLine("Packing fonts...");
 
-            List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (Tuple<string, string> fontPath in fontFiles)
-            {
-                byte[] nameData = Encoding.ASCII.GetBytes(fontPath.Item1);
-                byte[] fontData = File.ReadAllBytes(fontPath.Item2);
-                assets.Add(new Tuple<byte[], byte[]>(nameData, fontData));
-            }
-
-            return Pack(assets, fontOutputPath + "\\Fonts.jam");
-        }
-
-        private static bool PackViews(List<Tuple<string, string>> viewFiles, string viewOutputPath)
-        {
-            Console.WriteLine("Packing views...");
-
-            List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (Tuple<string, string> viewPath in viewFiles)
-            {
-                byte[] nameData = Encoding.ASCII.GetBytes(viewPath.Item1);
-                string viewData = File.ReadAllText(viewPath.Item2);
-                assets.Add(new Tuple<byte[], byte[]>(nameData, Encoding.ASCII.GetBytes(viewData)));
-            }
-
-            return Pack(assets, viewOutputPath + "\\Views.jam");
-        }
-
-        private static bool PackSounds(List<Tuple<string, string>> soundFiles, string soundOutputPath)
-        {
-            Console.WriteLine("Packing sounds...");
-
-            List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (Tuple<string, string> soundPath in soundFiles)
-            {
-                byte[] nameData = Encoding.ASCII.GetBytes(soundPath.Item1);
-                byte[] soundData = File.ReadAllBytes(soundPath.Item2);
-                assets.Add(new Tuple<byte[], byte[]>(nameData, soundData));
-            }
-
-            return Pack(assets, soundOutputPath + "\\Sounds.jam");
-        }
-
-        private static bool PackMusic(List<Tuple<string, string>> musicFiles, string musicOutputPath)
-        {
-            Console.WriteLine("Packing music...");
-
-            List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (Tuple<string, string> musicPath in musicFiles)
-            {
-                byte[] nameData = Encoding.ASCII.GetBytes(musicPath.Item1);
-                byte[] musicData = File.ReadAllBytes(musicPath.Item2);
-                assets.Add(new Tuple<byte[], byte[]>(nameData, musicData));
-            }
-
-            return Pack(assets, musicOutputPath + "\\Music.jam");
-        }
-
-        private static bool PackData(List<Tuple<string, string>> dataFiles, string dataOutputPath)
+        private static bool PackAssetsBytes(List<Tuple<string, string>> assetFiles, string archivePath)
         {
             List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (Tuple<string, string> dataPath in dataFiles)
+            foreach (Tuple<string, string> assetFile in assetFiles)
             {
-                byte[] nameData = Encoding.ASCII.GetBytes(dataPath.Item1);
-                string jsonData = File.ReadAllText(dataPath.Item2);
-                assets.Add(new Tuple<byte[], byte[]>(nameData, Encoding.ASCII.GetBytes(jsonData)));
+                byte[] nameData = Encoding.ASCII.GetBytes(assetFile.Item1);
+                byte[] assetData = File.ReadAllBytes(assetFile.Item2);
+                assets.Add(new Tuple<byte[], byte[]>(nameData, assetData));
             }
 
-            return Pack(assets, dataOutputPath + "\\Data.jam");
+            return CompressAndWriteArchive(assets, archivePath);
         }
 
-        private static bool PackShaders(List<Tuple<string, string>> shaderFiles, string shaderOutputPath, string objectPath)
+        private static bool PackAssetsAscii(List<Tuple<string, string>> assetFiles, string archivePath)
         {
-            Console.WriteLine("Packing shaders...");
+            List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
+            foreach (Tuple<string, string> assetFile in assetFiles)
+            {
+                byte[] nameData = Encoding.ASCII.GetBytes(assetFile.Item1);
+                string assetData = File.ReadAllText(assetFile.Item2);
+                assets.Add(new Tuple<byte[], byte[]>(nameData, Encoding.ASCII.GetBytes(assetData)));
+            }
 
+            return CompressAndWriteArchive(assets, archivePath);
+        }
+
+        private static bool PackAssetsShaders(List<Tuple<string, string>> shaderFiles, string shaderOutputPath, string objectPath)
+        {
             bool errors = false;
             List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
             foreach (Tuple<string, string> shaderPath in shaderFiles)
@@ -196,22 +208,7 @@ namespace JamPacker
                 throw new Exception("Unable to compile HLSL data!");
             }
 
-            return Pack(assets, shaderOutputPath + "\\Shaders.jam");
-        }
-
-        private static bool PackSprites(List<Tuple<string, string>> spriteFiles, string spriteOutputPath)
-        {
-            Console.WriteLine("Packing sprites...");
-
-            List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
-            foreach (Tuple<string, string> spritePath in spriteFiles)
-            {
-                byte[] nameData = Encoding.ASCII.GetBytes(spritePath.Item1);
-                byte[] spriteData = File.ReadAllBytes(spritePath.Item2);
-                assets.Add(new Tuple<byte[], byte[]>(nameData, spriteData));
-            }
-
-            return Pack(assets, spriteOutputPath + "\\Sprites.jam");
+            return CompressAndWriteArchive(assets, shaderOutputPath);
         }
     }
 }

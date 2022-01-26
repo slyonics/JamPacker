@@ -60,9 +60,5 @@ namespace JamPacker
                 return -1;
             }
         }
-
-        
-
-        
     }
 }
