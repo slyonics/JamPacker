@@ -79,6 +79,14 @@ namespace JamPacker
                 if (!PackAssetsBytes(assetFiles, outputPath + "\\Sprites.jam")) success = false;
             }
 
+            assetFiles = ReadManifest(objectPath + "\\Map.manifest", outputPath + "\\Maps.jam");
+            if (assetFiles.Count == 0) Console.WriteLine("Skipping maps...");
+            else
+            {
+                Console.WriteLine("Packing maps...");
+                if (!PackAssetsAscii(assetFiles, outputPath + "\\Maps.jam")) success = false;
+            }
+
             return success;
         }
 
