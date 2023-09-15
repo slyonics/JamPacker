@@ -31,7 +31,7 @@ namespace JamPacker
             assetDirectory.Add("Data", Enumerate(contentPath + "\\Data", "json"));
             assetDirectory.Add("Shader", Enumerate(contentPath + "\\Shaders", "fx"));
             assetDirectory.Add("Sprite", Enumerate(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" }));
-            assetDirectory.Add("Map", Enumerate(contentPath + "\\Maps", new string[] { "tmx", "tsx" }));
+            assetDirectory.Add("Map", Enumerate(contentPath + "\\Maps", new string[] { "tmx", "tsx", "ldtk" }));
 
             Console.WriteLine("Creating C# enumerations file...");
 
