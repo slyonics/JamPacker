@@ -60,7 +60,7 @@ namespace JamPacker
             else
             {
                 Console.WriteLine("Packing data...");
-                if (!PackAssetsAscii(assetFiles, outputPath + "\\Data.jam")) success = false;
+                if (!PackAssetsUnicode(assetFiles, outputPath + "\\Data.jam")) success = false;
             }
 
             assetFiles = ReadManifest(objectPath + "\\Shader.manifest", outputPath + "\\Shaders.jam");
@@ -181,6 +181,19 @@ namespace JamPacker
                 byte[] nameData = Encoding.ASCII.GetBytes(assetFile.Item1);
                 string assetData = File.ReadAllText(assetFile.Item2);
                 assets.Add(new Tuple<byte[], byte[]>(nameData, Encoding.ASCII.GetBytes(assetData)));
+            }
+
+            return CompressAndWriteArchive(assets, archivePath);
+        }
+
+        private static bool PackAssetsUnicode(List<Tuple<string, string>> assetFiles, string archivePath)
+        {
+            List<Tuple<byte[], byte[]>> assets = new List<Tuple<byte[], byte[]>>();
+            foreach (Tuple<string, string> assetFile in assetFiles)
+            {
+                byte[] nameData = Encoding.Unicode.GetBytes(assetFile.Item1);
+                string assetData = File.ReadAllText(assetFile.Item2);
+                assets.Add(new Tuple<byte[], byte[]>(nameData, Encoding.Unicode.GetBytes(assetData)));
             }
 
             return CompressAndWriteArchive(assets, archivePath);
