@@ -16,7 +16,8 @@ namespace JamPacker
         public static bool EnumerateAssets(string[] args)
         {
             string contentPath = args[1];
-            string outputPath = args[2];
+            string mainPath = args[2];
+            string outputPath = args[3];
             string objectPath = outputPath.Replace("\\bin\\", "\\obj\\");
             string projectName = contentPath.Split('\\').TakeLast(2).First();
             string[] contentSubdirs = Directory.GetDirectories(contentPath);
@@ -24,13 +25,13 @@ namespace JamPacker
             Console.WriteLine("Enumerating assets...");
 
             Dictionary<string, List<Tuple<string, string>>> assetDirectory = new Dictionary<string, List<Tuple<string, string>>>();
-            assetDirectory.Add("Font", Enumerate(contentPath + "\\Fonts", "ttf"));
-            assetDirectory.Add("View", Enumerate(new string[] { contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, "xml"));
-            assetDirectory.Add("Sound", Enumerate(contentPath + "\\Audio\\Sounds", "wav"));
-            assetDirectory.Add("Music", Enumerate(contentPath + "\\Audio\\Music", new string[] { "mp3", "ogg" }));
+            assetDirectory.Add("Font", Enumerate(contentPath + "\\Fonts", new string[] { "spritefont", "ttf" }));
+            assetDirectory.Add("View", Enumerate(new string[] { contentPath + "\\Views", contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, new string[] { "xml", "view" }));
+            assetDirectory.Add("Sound", Enumerate(new string[] { contentPath + "\\Sounds", contentPath + "\\Audio\\Sounds" }, "wav"));
+            assetDirectory.Add("Music", Enumerate(new string[] { contentPath + "\\Music", contentPath + "\\Audio\\Music" }, new string[] { "mp3", "ogg" }));
             assetDirectory.Add("Data", Enumerate(contentPath + "\\Data", "json"));
             assetDirectory.Add("Shader", Enumerate(contentPath + "\\Shaders", "fx"));
-            assetDirectory.Add("Sprite", Enumerate(contentPath + "\\Graphics", new string[] { "png", "jpg", "jpeg" }));
+            assetDirectory.Add("Sprite", Enumerate(new string[] { contentPath + "\\Sprites", contentPath + "\\Graphics" }, new string[] { "png", "jpg", "jpeg" }));
             assetDirectory.Add("Map", Enumerate(contentPath + "\\Maps", new string[] { "tmx", "tsx", "ldtk" }));
 
             Console.WriteLine("Creating C# enumerations file...");
@@ -48,7 +49,7 @@ namespace JamPacker
             stringBuilder.AppendLine("}");
             try
             {
-                File.WriteAllText(contentPath + "\\..\\Main\\AssetList.cs", stringBuilder.ToString());
+                File.WriteAllText(mainPath + "\\AssetList.cs", stringBuilder.ToString());
             }
             catch (Exception ex)
             {
@@ -115,6 +116,8 @@ namespace JamPacker
             List<Tuple<string, string>> result = new List<Tuple<string, string>>();
             foreach (string basePath in basePaths)
             {
+                if (!Directory.Exists(basePath)) continue;
+
                 foreach (string extension in extensions)
                 {
                     IEnumerable<string> files = Directory.EnumerateFiles(basePath, "*." + extension, SearchOption.AllDirectories);

@@ -2,7 +2,7 @@
   "profiles": {
     "JamPacker": {
       "commandName": "Project",
-      "commandLineArgs": "Pack C:\\Users\\Slyonics\\Source\\Repos\\JamBreaker\\JamBreaker\\Assets C:\\Users\\Slyonics\\Source\\Repos\\JamBreaker\\JamBreaker\\bin\\x64\\Debug\\net6.0"
+      "commandLineArgs": "Enumerate C:\\Gamedev\\Repos\\Firebird\\FirebirdContent C:\\Gamedev\\Repos\\Firebird\\Firebird.BlazorGL\\bin\\Debug\\net8.0\\"
     }
   }
 }
