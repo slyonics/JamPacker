@@ -2,7 +2,7 @@
   "profiles": {
     "JamPacker": {
       "commandName": "Project",
-      "commandLineArgs": "Enumerate C:\\Gamedev\\Repos\\Firebird\\FirebirdContent C:\\Gamedev\\Repos\\Firebird\\Firebird.BlazorGL\\bin\\Debug\\net8.0\\"
+      "commandLineArgs": "Enumerate C:\\Gamedev\\Repos\\Firebird\\FirebirdContent C:\\Gamedev\\Repos\\Firebird\\Firebird.DesktopGL\\Main C:\\Gamedev\\Repos\\Firebird\\Firebird.DesktopGL\\bin\\AnyCPU\\Debug\\net8.0\\"
     }
   }
 }

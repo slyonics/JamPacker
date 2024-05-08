@@ -57,6 +57,9 @@ namespace JamPacker
                 return false;
             }
 
+            return true;
+
+            /*
             Console.WriteLine("Determining asset archives to build...");
 
             JsonSerializer serializer = new JsonSerializer();
@@ -94,6 +97,7 @@ namespace JamPacker
             }
 
             return true;
+            */
         }
 
         private static void WriteEnumerations(List<Tuple<string, string>> assetFiles, StringBuilder stringBuilder)
