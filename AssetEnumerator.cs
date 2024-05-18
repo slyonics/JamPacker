@@ -25,7 +25,7 @@ namespace JamPacker
             Console.WriteLine("Enumerating assets...");
 
             Dictionary<string, List<Tuple<string, string>>> assetDirectory = new Dictionary<string, List<Tuple<string, string>>>();
-            assetDirectory.Add("Font", Enumerate(contentPath + "\\Fonts", new string[] { "spritefont", "ttf" }));
+            assetDirectory.Add("Font", Enumerate(contentPath + "\\Fonts", new string[] { "spritefont" }));
             assetDirectory.Add("View", Enumerate(new string[] { contentPath + "\\Views", contentPath + "\\..\\Scenes", contentPath + "\\..\\SceneObjects" }, new string[] { "xml", "view" }));
             assetDirectory.Add("Sound", Enumerate(new string[] { contentPath + "\\Sounds", contentPath + "\\Audio\\Sounds" }, "wav"));
             assetDirectory.Add("Music", Enumerate(new string[] { contentPath + "\\Music", contentPath + "\\Audio\\Music" }, new string[] { "mp3", "ogg" }));
@@ -40,7 +40,7 @@ namespace JamPacker
             stringBuilder.AppendLine(string.Format("namespace {0}.Main\r\n", projectName) + "{");
             foreach (KeyValuePair<string, List<Tuple<string, string>>> assetList in assetDirectory)
             {
-                if (assetList.Key == "Font") continue;
+                // if (assetList.Key == "Font") continue;
 
                 stringBuilder.AppendLine("    public enum Game" + assetList.Key + "\r\n" + "    {");
                 WriteEnumerations(assetList.Value, stringBuilder);
